@@ -1,0 +1,54 @@
+import ts from "typescript";
+
+const dummyFilePath = "/file.ts";
+
+export default function segmentationJSCode(code: string) {
+  const textAst = ts.createSourceFile(
+    dummyFilePath,
+    code,
+    ts.ScriptTarget.Latest
+  );
+  const options: ts.CompilerOptions = {};
+  const host: ts.CompilerHost = {
+    fileExists: (filePath) => filePath === dummyFilePath,
+    directoryExists: (dirPath) => dirPath === "/",
+    getCurrentDirectory: () => "/",
+    getDirectories: () => [],
+    getCanonicalFileName: (fileName) => fileName,
+    getNewLine: () => "\n",
+    getDefaultLibFileName: () => "",
+    getSourceFile: (filePath) =>
+      filePath === dummyFilePath ? textAst : undefined,
+    readFile: (filePath) => (filePath === dummyFilePath ? code : undefined),
+    useCaseSensitiveFileNames: () => true,
+    writeFile: () => {},
+  };
+  const program = ts.createProgram({
+    options,
+    rootNames: [dummyFilePath],
+    host,
+  });
+  const sourceFile = program.getSourceFile(dummyFilePath);
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.ES2020,
+    false,
+    ts.LanguageVariant.JSX,
+    sourceFile?.text
+  );
+  const words: string[] = [];
+  while (scanner.scan() !== ts.SyntaxKind.EndOfFileToken) {
+    const tok = scanner.getTokenText();
+    if (words.length > 0 && words[words.length - 1]?.endsWith(" ")) {
+      if (!tok.startsWith(" ")) {
+        words.push(tok);
+      }
+    } else {
+      if (tok.startsWith(" ")) {
+        words.push(tok);
+      } else {
+        words.push(" ", tok);
+      }
+    }
+  }
+  return words.join("");
+}
